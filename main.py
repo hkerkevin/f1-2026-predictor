@@ -12,6 +12,7 @@ Prediction targets:
 - First Race Winner
 """
 
+import argparse
 import os
 import sys
 import json
@@ -34,10 +35,9 @@ from model import (
     generate_predictions,
     FEATURE_COLS,
 )
-from visualizations import generate_all_plots
 
 
-def main():
+def main(generate_plots=False):
     data_dir = os.path.dirname(__file__)
     race_csv = os.path.join(data_dir, "f1_race_results.csv")
     quali_csv = os.path.join(data_dir, "f1_quali_results.csv")
@@ -94,16 +94,20 @@ def main():
 
     # ── Step 5: Monte Carlo Season Simulation ─────────────────────────────
     print("\n" + "=" * 60)
-    print("Running Monte Carlo season simulation (2,000 seasons)...")
+    print("Running Monte Carlo season simulation (5,000 seasons)...")
     print("=" * 60)
     sim_results = simulate_season(position_model, dnf_model, driver_profiles, n_simulations=5000)
 
     # ── Step 6: Generate Predictions ──────────────────────────────────────
     predictions = generate_predictions(sim_results)
 
-    # ── Step 7: Generate Visualizations ─────────────────────────────────
-    plot_dir = os.path.join(data_dir, "plots")
-    generate_all_plots(sim_results, plot_dir)
+    # ── Step 7: Generate Visualizations (optional) ──────────────────────
+    if generate_plots:
+        from visualizations import generate_all_plots
+        plot_dir = os.path.join(data_dir, "plots")
+        generate_all_plots(sim_results, plot_dir)
+    else:
+        print("\n  Skipping plot generation (use --plots to regenerate)")
 
     # ── Step 8: Save Versioned Predictions ──────────────────────────────
     save_versioned_predictions(data_dir, predictions, sim_results, FEATURE_COLS)
@@ -174,4 +178,7 @@ def save_versioned_predictions(data_dir, predictions, sim_results, feature_cols)
 
 
 if __name__ == "__main__":
-    predictions = main()
+    parser = argparse.ArgumentParser(description="F1 2026 Season Predictor")
+    parser.add_argument("--plots", action="store_true", help="Regenerate visualization plots")
+    args = parser.parse_args()
+    predictions = main(generate_plots=args.plots)
