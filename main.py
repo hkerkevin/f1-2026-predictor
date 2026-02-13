@@ -14,6 +14,9 @@ Prediction targets:
 
 import os
 import sys
+import json
+import glob
+from datetime import datetime
 import pandas as pd
 import numpy as np
 
@@ -102,7 +105,72 @@ def main():
     plot_dir = os.path.join(data_dir, "plots")
     generate_all_plots(sim_results, plot_dir)
 
+    # ── Step 8: Save Versioned Predictions ──────────────────────────────
+    save_versioned_predictions(data_dir, predictions, sim_results, FEATURE_COLS)
+
     return predictions
+
+
+def save_versioned_predictions(data_dir, predictions, sim_results, feature_cols):
+    """Save predictions to a versioned JSON file and compare with previous runs."""
+    pred_dir = os.path.join(data_dir, "predictions")
+    os.makedirs(pred_dir, exist_ok=True)
+
+    # Find next version number
+    existing = sorted(glob.glob(os.path.join(pred_dir, "v*.json")))
+    version = len(existing) + 1
+
+    # Build detailed results
+    n = sim_results["n_simulations"]
+    avg_driver_pts = {d: float(np.mean(pts)) for d, pts in sim_results["wdc_points"].items()}
+    avg_team_pts = {t: float(np.mean(pts)) for t, pts in sim_results["wcc_points"].items()}
+    champion_probs = {d: round(c / n * 100, 1) for d, c in sim_results["champion_counts"].items() if c > 0}
+    wcc_probs = {t: round(c / n * 100, 1) for t, c in sim_results["constructor_champion_counts"].items() if c > 0}
+
+    record = {
+        "version": f"v{version}",
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "n_simulations": n,
+        "features": feature_cols,
+        "predictions": predictions,
+        "driver_avg_points": avg_driver_pts,
+        "team_avg_points": avg_team_pts,
+        "wdc_champion_probabilities": champion_probs,
+        "wcc_champion_probabilities": wcc_probs,
+    }
+
+    filename = f"v{version}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    filepath = os.path.join(pred_dir, filename)
+    with open(filepath, "w") as f:
+        json.dump(record, f, indent=2)
+    print(f"\n  Saved predictions to {filepath}")
+
+    # Compare with previous version if available
+    if existing:
+        prev_path = existing[-1]
+        with open(prev_path) as f:
+            prev = json.load(f)
+        print(f"\n  === COMPARISON: {prev['version']} -> v{version} ===")
+        print(f"  {'Category':<30s} {'Previous':<25s} {'Current':<25s} {'Changed'}")
+        print(f"  {'-'*95}")
+        for key in ["wdc_champion", "most_wins", "most_poles", "first_race_winner"]:
+            old_val = prev["predictions"].get(key, "?")
+            new_val = predictions.get(key, "?")
+            changed = " *" if old_val != new_val else ""
+            print(f"  {key:<30s} {old_val:<25s} {new_val:<25s}{changed}")
+        for i in range(3):
+            key = f"wdc_p{i+1}"
+            old_val = prev["predictions"].get("wdc_top3", ["?", "?", "?"])[i]
+            new_val = predictions.get("wdc_top3", ["?", "?", "?"])[i]
+            changed = " *" if old_val != new_val else ""
+            print(f"  {key:<30s} {old_val:<25s} {new_val:<25s}{changed}")
+        for i in range(3):
+            key = f"wcc_p{i+1}"
+            old_val = prev["predictions"].get("wcc_top3", ["?", "?", "?"])[i]
+            new_val = predictions.get("wcc_top3", ["?", "?", "?"])[i]
+            changed = " *" if old_val != new_val else ""
+            print(f"  {key:<30s} {old_val:<25s} {new_val:<25s}{changed}")
+        print(f"  Features: {len(prev.get('features', []))} -> {len(feature_cols)}")
 
 
 if __name__ == "__main__":

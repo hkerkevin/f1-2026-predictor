@@ -1,0 +1,33 @@
+{
+  "version": "v1",
+  "timestamp": "2025-02-13T09:50:00",
+  "n_simulations": 5000,
+  "features": [
+    "grid_position", "rolling_avg_finish", "rolling_avg_points", "rolling_dnf_rate",
+    "rolling_consistency", "rolling_win_rate", "rolling_podium_rate", "rolling_pos_delta",
+    "experience", "rolling_teammate_delta", "team_rolling_avg_finish",
+    "team_rolling_avg_points", "team_rolling_dnf_rate"
+  ],
+  "predictions": {
+    "wdc_champion": "Max Verstappen",
+    "wdc_top3": ["Max Verstappen", "Charles Leclerc", "Oscar Piastri"],
+    "wcc_champion": "McLaren",
+    "wcc_top3": ["McLaren", "Ferrari", "Red Bull Racing"],
+    "most_wins": "Max Verstappen",
+    "most_poles": "Lando Norris",
+    "first_race_winner": "Max Verstappen"
+  },
+  "driver_avg_points": {
+    "Max Verstappen": 361, "Charles Leclerc": 355, "Oscar Piastri": 349,
+    "Lando Norris": 325, "Lewis Hamilton": 272, "George Russell": 232
+  },
+  "team_avg_points": {
+    "McLaren": 674, "Ferrari": 627, "Red Bull Racing": 547, "Mercedes": 331
+  },
+  "wdc_champion_probabilities": {
+    "Max Verstappen": 37.4, "Charles Leclerc": 31.1, "Oscar Piastri": 23.7, "Lando Norris": 7.6
+  },
+  "wcc_champion_probabilities": {
+    "McLaren": 71.9, "Ferrari": 25.7, "Red Bull Racing": 2.4
+  }
+}

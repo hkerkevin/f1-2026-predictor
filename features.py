@@ -5,7 +5,7 @@ Builds driver skill ratings, team strength ratings, and circuit features.
 
 import pandas as pd
 import numpy as np
-from config import TEAM_NAME_MAP, DRIVER_NAME_MAP, F1_POINTS, ROOKIES_2026
+from config import TEAM_NAME_MAP, DRIVER_NAME_MAP, F1_POINTS, ROOKIES_2026, classify_circuit_type
 
 
 def normalize_team_name(team_name):
@@ -150,6 +150,34 @@ def compute_driver_features(race_df, quali_df):
         recent_quali = d_quali[d_quali["year"] >= d_quali["year"].max() - 1] if not d_quali.empty else d_quali
         recent_avg_quali_pos = recent_quali["quali_position"].mean() if not recent_quali.empty else avg_quali_pos
 
+        # --- Momentum: short-window vs long-window form ---
+        finished_sorted = finished_races.sort_values(["year", "round"])
+        finish_series = finished_sorted["finish_position"]
+        if len(finish_series) >= 5:
+            short_avg = finish_series.tail(5).mean()
+            long_avg = finish_series.mean()
+            momentum = long_avg - short_avg  # Positive = recent form better than career
+            ewma_finish = finish_series.ewm(span=5, min_periods=2).mean().iloc[-1]
+        else:
+            momentum = 0.0
+            ewma_finish = avg_finish
+
+        # --- Circuit-type qualifying deltas ---
+        # How much better/worse does this driver qualify at each circuit type vs their overall?
+        d_quali_ct = d_quali.copy()
+        if not d_quali_ct.empty:
+            d_quali_ct["circuit_type"] = d_quali_ct["event_name"].apply(classify_circuit_type)
+            overall_quali = d_quali_ct["quali_position"].mean()
+            ct_quali_deltas = {}
+            for ct in range(4):
+                ct_rows = d_quali_ct[d_quali_ct["circuit_type"] == ct]
+                if len(ct_rows) >= 2:
+                    ct_quali_deltas[ct] = ct_rows["quali_position"].mean() - overall_quali
+                else:
+                    ct_quali_deltas[ct] = 0.0
+        else:
+            ct_quali_deltas = {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0}
+
         features[driver] = {
             "avg_finish": avg_finish,
             "avg_grid": avg_grid if pd.notna(avg_grid) else 12.0,
@@ -166,6 +194,12 @@ def compute_driver_features(race_df, quali_df):
             "recent_avg_points": recent_avg_points,
             "avg_quali_pos": avg_quali_pos,
             "recent_avg_quali_pos": recent_avg_quali_pos,
+            "momentum": momentum,
+            "ewma_finish": ewma_finish,
+            "ct_quali_delta_0": ct_quali_deltas[0],  # street
+            "ct_quali_delta_1": ct_quali_deltas[1],  # high_speed
+            "ct_quali_delta_2": ct_quali_deltas[2],  # technical
+            "ct_quali_delta_3": ct_quali_deltas[3],  # balanced
         }
 
     return pd.DataFrame(features).T
@@ -318,6 +352,12 @@ def compute_rookie_features(driver_features_df):
         feats["position_delta"] = 0.0
         feats["avg_quali_delta_vs_teammate"] = -1.0  # Slightly behind teammate
         feats["avg_race_delta_vs_teammate"] = -0.5
+        feats["momentum"] = 0.0
+        feats["ewma_finish"] = feats["avg_finish"]
+        feats["ct_quali_delta_0"] = 0.0
+        feats["ct_quali_delta_1"] = 0.0
+        feats["ct_quali_delta_2"] = 0.0
+        feats["ct_quali_delta_3"] = 0.0
         rookie_features[rookie] = feats
 
     return pd.DataFrame(rookie_features).T
@@ -349,6 +389,9 @@ def build_training_data(race_df, quali_df):
 
     # Sort chronologically and create a race order index
     merged = merged.sort_values(["year", "round", "norm_driver"]).reset_index(drop=True)
+
+    # Add circuit type
+    merged["circuit_type"] = merged["event_name"].apply(classify_circuit_type)
 
     # Compute position delta (grid - finish) for position gain metric
     merged["pos_delta"] = merged["grid_position"] - merged["finish_position"]
@@ -389,6 +432,8 @@ def build_training_data(race_df, quali_df):
 
     WIN = 20  # Rolling window size
 
+    SHORT_WIN = 5  # Short window for momentum
+
     def rolling_driver_features(g):
         g = g.sort_values(["year", "round"])
         g["rolling_avg_finish"] = g["finish_clean"].expanding().mean().shift(1)
@@ -401,6 +446,11 @@ def build_training_data(race_df, quali_df):
         g["experience"] = range(len(g))
         # Consistency: rolling std of finish positions
         g["rolling_consistency"] = g["finish_clean"].rolling(WIN, min_periods=3).std().shift(1)
+        # Momentum: short window avg vs long window avg (positive = improving)
+        g["rolling_avg_finish_short"] = g["finish_clean"].rolling(SHORT_WIN, min_periods=2).mean().shift(1)
+        g["momentum"] = g["rolling_avg_finish"] - g["rolling_avg_finish_short"]
+        # EWMA: exponentially weighted finish position
+        g["ewma_finish"] = g["finish_clean"].ewm(span=SHORT_WIN, min_periods=2).mean().shift(1)
         return g
 
     merged = merged.groupby("norm_driver", group_keys=False).apply(rolling_driver_features)
@@ -437,6 +487,7 @@ def build_training_data(race_df, quali_df):
         "rolling_consistency", "rolling_win_rate", "rolling_podium_rate",
         "rolling_pos_delta", "experience", "rolling_teammate_delta",
         "team_rolling_avg_finish", "team_rolling_avg_points", "team_rolling_dnf_rate",
+        "circuit_type", "rolling_avg_finish_short", "momentum", "ewma_finish",
         "finish_position", "is_dnf",
     ]].copy()
 

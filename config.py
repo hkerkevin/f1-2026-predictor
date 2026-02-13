@@ -82,3 +82,37 @@ CALENDAR_2026 = [
     "Italy", "Azerbaijan", "Singapore", "United States", "Mexico",
     "Brazil", "Las Vegas", "Qatar", "Abu Dhabi",
 ]
+
+# Circuit type classification
+# 0=street, 1=high_speed, 2=technical, 3=balanced
+CIRCUIT_TYPE_NAMES = {0: "street", 1: "high_speed", 2: "technical", 3: "balanced"}
+
+CALENDAR_2026_TYPES = {
+    "Australia": 3, "China": 2, "Japan": 2, "Bahrain": 3, "Saudi Arabia": 0,
+    "Miami": 0, "Emilia Romagna": 3, "Monaco": 0, "Spain": 2, "Canada": 1,
+    "Austria": 3, "Great Britain": 1, "Belgium": 1, "Hungary": 2, "Netherlands": 2,
+    "Italy": 1, "Azerbaijan": 0, "Singapore": 0, "United States": 3, "Mexico": 3,
+    "Brazil": 3, "Las Vegas": 0, "Qatar": 3, "Abu Dhabi": 3,
+}
+
+# Keywords for classifying historical event names
+_STREET_KW = ["monaco", "singapore", "azerbaijan", "baku", "las vegas", "miami", "jeddah", "saudi"]
+_HIGHSPEED_KW = ["monza", "italian", "belgium", "belgian", "spa", "great britain", "british",
+                 "silverstone", "canada", "canadian", "montreal"]
+_TECHNICAL_KW = ["hungary", "hungarian", "spain", "spanish", "barcelona", "netherlands", "dutch",
+                 "zandvoort", "japan", "japanese", "suzuka", "china", "chinese", "shanghai"]
+
+
+def classify_circuit_type(event_name):
+    """Classify a race event into circuit type (0=street, 1=high_speed, 2=technical, 3=balanced)."""
+    e = event_name.lower()
+    for kw in _STREET_KW:
+        if kw in e:
+            return 0
+    for kw in _HIGHSPEED_KW:
+        if kw in e:
+            return 1
+    for kw in _TECHNICAL_KW:
+        if kw in e:
+            return 2
+    return 3

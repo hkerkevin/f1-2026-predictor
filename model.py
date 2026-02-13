@@ -12,6 +12,7 @@ import warnings
 
 from config import (
     LINEUP_2026, F1_POINTS, CALENDAR_2026, ROOKIES_2026, TEAM_NAME_MAP,
+    CALENDAR_2026_TYPES,
 )
 from features import (
     compute_driver_features, compute_team_features,
@@ -34,6 +35,10 @@ FEATURE_COLS = [
     "team_rolling_avg_finish",
     "team_rolling_avg_points",
     "team_rolling_dnf_rate",
+    "circuit_type",
+    "rolling_avg_finish_short",
+    "momentum",
+    "ewma_finish",
 ]
 
 
@@ -133,22 +138,33 @@ def build_2026_driver_features(race_df, quali_df):
                 "team_rolling_avg_finish": team_row["recent_avg_finish"],
                 "team_rolling_avg_points": team_row["recent_points_per_race"],
                 "team_rolling_dnf_rate": team_row["team_dnf_rate"],
+                # Momentum features
+                "rolling_avg_finish_short": d["ewma_finish"],  # Best proxy for short-window
+                "momentum": d["momentum"],
+                "ewma_finish": d["ewma_finish"],
+                # circuit_type is set per-race in simulation, default to balanced
+                "circuit_type": 3,
                 # Extra context for qualifying simulation (use recent form)
                 "team": team,
                 "avg_quali_pos": d["recent_avg_quali_pos"],
                 "team_avg_quali": team_row["recent_avg_team_quali"],
                 "reg_adaptability": team_row["reg_adaptability"],
                 "trajectory": team_row["trajectory"],
+                # Circuit-type qualifying deltas
+                "ct_quali_delta_0": d["ct_quali_delta_0"],
+                "ct_quali_delta_1": d["ct_quali_delta_1"],
+                "ct_quali_delta_2": d["ct_quali_delta_2"],
+                "ct_quali_delta_3": d["ct_quali_delta_3"],
             }
             driver_profiles[driver] = profile
 
     return driver_profiles
 
 
-def simulate_qualifying(driver_profiles, rng):
+def simulate_qualifying(driver_profiles, rng, circuit_type=3):
     """
     Simulate qualifying for one race.
-    Uses driver quali skill + team car performance + randomness.
+    Uses driver quali skill + team car performance + circuit type affinity + randomness.
     """
     quali_scores = {}
 
@@ -156,14 +172,21 @@ def simulate_qualifying(driver_profiles, rng):
         # Base qualifying performance = blend of driver quali ability + team car performance
         base = 0.4 * profile["avg_quali_pos"] + 0.6 * profile["team_avg_quali"]
 
+        # Circuit-type adjustment: driver's historical delta at this circuit type
+        ct_key = f"ct_quali_delta_{circuit_type}"
+        ct_adj = profile.get(ct_key, 0.0) * 0.5  # Scale down to avoid overfitting
+
         # Regulation change: teams with better adaptability get a boost
         reg_adj = -profile["reg_adaptability"] * 0.3
         trajectory_adj = -profile["trajectory"] * 0.5
 
+        # Momentum: drivers on hot streaks get a small qualifying boost
+        momentum_adj = -profile.get("momentum", 0) * 0.2  # Positive momentum → lower (better) score
+
         # Random variance (qualifying is high variance)
         noise = rng.normal(0, 1.8)
 
-        quali_scores[driver] = base + reg_adj + trajectory_adj + noise
+        quali_scores[driver] = base + ct_adj + reg_adj + trajectory_adj + momentum_adj + noise
 
     # Sort by score (lower = better position)
     sorted_drivers = sorted(quali_scores.items(), key=lambda x: x[1])
@@ -173,7 +196,7 @@ def simulate_qualifying(driver_profiles, rng):
 
 
 def simulate_race(position_model, dnf_model, driver_profiles, quali_result, rng,
-                   _feature_template=None):
+                   circuit_type=3):
     """
     Simulate a single race using the trained model.
     Batches all driver predictions into single model calls for performance.
@@ -187,6 +210,7 @@ def simulate_race(position_model, dnf_model, driver_profiles, quali_result, rng,
         profile = driver_profiles[driver]
         features = {col: profile.get(col, 0) for col in FEATURE_COLS}
         features["grid_position"] = quali_result[driver]
+        features["circuit_type"] = circuit_type
         rows.append(features)
 
     X = pd.DataFrame(rows, columns=FEATURE_COLS)
@@ -270,8 +294,10 @@ def simulate_season(position_model, dnf_model, driver_profiles, n_simulations=20
         season_team_points = {t: 0 for t in LINEUP_2026.keys()}
 
         for race_idx, race_name in enumerate(CALENDAR_2026):
+            circuit_type = CALENDAR_2026_TYPES.get(race_name, 3)
+
             # Simulate qualifying
-            quali = simulate_qualifying(driver_profiles, rng)
+            quali = simulate_qualifying(driver_profiles, rng, circuit_type=circuit_type)
 
             # Track poles
             pole_sitter = min(quali, key=quali.get)
@@ -279,7 +305,8 @@ def simulate_season(position_model, dnf_model, driver_profiles, n_simulations=20
 
             # Simulate race
             race_results = simulate_race(
-                position_model, dnf_model, driver_profiles, quali, rng
+                position_model, dnf_model, driver_profiles, quali, rng,
+                circuit_type=circuit_type
             )
 
             # Accumulate results

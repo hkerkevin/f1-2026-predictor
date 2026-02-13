@@ -1,0 +1,91 @@
+{
+  "version": "v2",
+  "timestamp": "2026-02-13T11:14:20",
+  "n_simulations": 5000,
+  "features": [
+    "grid_position",
+    "rolling_avg_finish",
+    "rolling_avg_points",
+    "rolling_dnf_rate",
+    "rolling_consistency",
+    "rolling_win_rate",
+    "rolling_podium_rate",
+    "rolling_pos_delta",
+    "experience",
+    "rolling_teammate_delta",
+    "team_rolling_avg_finish",
+    "team_rolling_avg_points",
+    "team_rolling_dnf_rate",
+    "circuit_type",
+    "rolling_avg_finish_short",
+    "momentum",
+    "ewma_finish"
+  ],
+  "predictions": {
+    "wdc_champion": "Charles Leclerc",
+    "wdc_top3": [
+      "Charles Leclerc",
+      "Max Verstappen",
+      "George Russell"
+    ],
+    "wcc_champion": "Ferrari",
+    "wcc_top3": [
+      "Ferrari",
+      "McLaren",
+      "Red Bull Racing"
+    ],
+    "most_wins": "Charles Leclerc",
+    "most_poles": "Lando Norris",
+    "first_race_winner": "Max Verstappen"
+  },
+  "driver_avg_points": {
+    "Pierre Gasly": 2.8014,
+    "Franco Colapinto": 1.4928,
+    "Fernando Alonso": 12.491,
+    "Lance Stroll": 9.7158,
+    "Niko Hulkenberg": 11.8916,
+    "Gabriel Bortoleto": 6.224,
+    "Sergio Perez": 12.4514,
+    "Valtteri Bottas": 4.8714,
+    "Charles Leclerc": 384.9306,
+    "Lewis Hamilton": 205.0922,
+    "Esteban Ocon": 14.0078,
+    "Oliver Bearman": 44.624,
+    "Lando Norris": 264.9044,
+    "Oscar Piastri": 304.3618,
+    "George Russell": 368.8306,
+    "Kimi Antonelli": 116.0492,
+    "Liam Lawson": 30.6726,
+    "Arvid Lindblad": 8.3902,
+    "Max Verstappen": 373.1046,
+    "Isack Hadjar": 148.4022,
+    "Carlos Sainz": 79.2502,
+    "Alexander Albon": 19.2874
+  },
+  "team_avg_points": {
+    "Alpine": 4.2942,
+    "Aston Martin": 22.2068,
+    "Audi": 18.1156,
+    "Cadillac": 17.3228,
+    "Ferrari": 590.0228,
+    "Haas F1 Team": 58.6318,
+    "McLaren": 569.2662,
+    "Mercedes": 484.8798,
+    "Racing Bulls": 39.0628,
+    "Red Bull Racing": 521.5068,
+    "Williams": 98.5376
+  },
+  "wdc_champion_probabilities": {
+    "Charles Leclerc": 44.3,
+    "Lando Norris": 0.0,
+    "Oscar Piastri": 0.6,
+    "George Russell": 26.3,
+    "Max Verstappen": 28.8
+  },
+  "wcc_champion_probabilities": {
+    "Ferrari": 57.2,
+    "McLaren": 32.4,
+    "Mercedes": 2.0,
+    "Red Bull Racing": 8.4
+  }
+}
