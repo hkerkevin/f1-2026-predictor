@@ -225,12 +225,16 @@ def plot_first_race_winner(sim_results, out_dir):
     fig, ax = plt.subplots(figsize=(8, 5))
     wedges, texts, autotexts = ax.pie(
         probs, labels=drivers, colors=colours, autopct="%1.1f%%",
-        startangle=140, pctdistance=0.8,
+        startangle=140, pctdistance=0.82,
+        wedgeprops=dict(width=0.45, edgecolor="#0f1117", linewidth=1.5),
         textprops={"color": "#d8dee9", "fontsize": 10},
     )
     for t in autotexts:
         t.set_color("#ffffff")
         t.set_fontsize(9)
+    # Center label
+    ax.text(0, 0, "AUS\n2026", ha="center", va="center",
+            fontsize=13, fontweight="bold", color="#d8dee9")
     ax.set_title("First Race Winner — Australia 2026", fontsize=14, fontweight="bold")
     _save(fig, "first_race_winner.png", out_dir)
 
